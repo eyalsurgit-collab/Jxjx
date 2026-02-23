@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>יומן משימות משותף</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f13; --surface: #1a1a24; --surface2: #232333; --border: #2e2e42;
+    --accent: #7c6af7; --accent2: #f76ab0; --green: #4ade80; --red: #f87171;
+    --yellow: #fbbf24; --text: #e8e8f0; --muted: #7777a0; --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Heebo', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; }
+  body::before { content:''; position:fixed; top:-200px; right:-200px; width:600px; height:600px; background:radial-gradient(circle, rgba(124,106,247,0.12) 0%, transparent 70%); pointer-events:none; }
+  .container { max-width: 780px; margin: 0 auto; position: relative; z-index: 1; }
+
+  #nameScreen { display:flex; align-items:center; justify-content:center; min-height:80vh; }
+  .name-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:40px; max-width:400px; width:100%; text-align:center; }
+  .name-card .icon { font-size:3rem; margin-bottom:16px; }
+  .name-card h2 { font-size:1.6rem; font-weight:900; margin-bottom:8px; }
+  .name-card p { color:var(--muted); font-size:0.9rem; margin-bottom:24px; }
+  .name-card input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px 16px; color:var(--text); font-family:'Heebo',sans-serif; font-size:1rem; outline:none; margin-bottom:14px; text-align:center; transition:border-color 0.2s; }
+  .name-card input:focus { border-color:var(--accent); }
+
+  #mainApp { display:none; }
+  header { text-align:center; padding:40px 0 32px; }
+  header h1 { font-size:2.4rem; font-weight:900; letter-spacing:-1px; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:6px; }
+  header p { color:var(--muted); font-size:0.9rem; }
+  .live-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--green); animation:pulse 2s infinite; margin-left:6px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .user-bar { display:flex; gap:10px; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 18px; margin-bottom:20px; }
+  .user-bar label { font-size:0.85rem; color:var(--muted); white-space:nowrap; }
+  .user-bar span { flex:1; font-weight:600; font-size:0.95rem; }
+  .avatar { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700; flex-shrink:0; }
+  .change-user-btn { background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--muted); font-family:'Heebo',sans-serif; font-size:0.8rem; padding:5px 10px; cursor:pointer; transition:all 0.2s; }
+  .change-user-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; text-align:center; }
+  .stat-number { font-size:1.8rem; font-weight:900; line-height:1; }
+  .stat-label { font-size:0.75rem; color:var(--muted); margin-top:4px; }
+
+  .add-task-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:24px; transition:border-color 0.3s; }
+  .add-task-card:focus-within { border-color:var(--accent); }
+  .add-task-card h2 { font-size:0.95rem; color:var(--muted); margin-bottom:14px; font-weight:500; }
+  .form-row { display:flex; gap:10px; flex-wrap:wrap; }
+  .form-row input[type="text"], .form-row input[type="date"] { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; color:var(--text); font-family:'Heebo',sans-serif; font-size:0.9rem; outline:none; transition:border-color 0.2s; }
+  .form-row input[type="text"] { flex:2; min-width:160px; }
+  .form-row input[type="date"] { flex:1; min-width:140px; }
+  .form-row input:focus { border-color:var(--accent); }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(0.7); cursor:pointer; }
+
+  .btn { padding:10px 20px; border-radius:8px; border:none; font-family:'Heebo',sans-serif; font-weight:700; font-size:0.9rem; cursor:pointer; transition:all 0.2s; white-space:nowrap; }
+  .btn-primary { background:linear-gradient(135deg,var(--accent),var(--accent2)); color:white; }
+  .btn-primary:hover { opacity:0.85; transform:translateY(-1px); }
+
+  .filters { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .filter-btn { padding:6px 16px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--muted); font-family:'Heebo',sans-serif; font-size:0.82rem; cursor:pointer; transition:all 0.2s; }
+  .filter-btn.active { background:var(--accent); border-color:var(--accent); color:white; }
+  .filter-btn:hover:not(.active) { border-color:var(--accent); color:var(--text); }
+
+  .tasks-list { display:flex; flex-direction:column; gap:10px; }
+  .empty-state { text-align:center; padding:60px 20px; color:var(--muted); }
+  .empty-state .icon { font-size:3rem; margin-bottom:12px; }
+
+  .task-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; transition:all 0.2s; animation:slideIn 0.3s ease; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+  .task-card:hover { border-color:#3e3e58; }
+  .task-card.done { opacity:0.6; }
+  .task-card.done .task-title { text-decoration:line-through; }
+
+  .task-top { display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; }
+  .task-info { flex:1; }
+  .task-title { font-size:1rem; font-weight:600; margin-bottom:6px; line-height:1.4; }
+  .task-meta { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .tag { font-size:0.75rem; padding:2px 10px; border-radius:20px; font-weight:500; }
+  .tag-user { background:rgba(124,106,247,0.15); color:var(--accent); border:1px solid rgba(124,106,247,0.3); }
+  .tag-date { background:rgba(251,191,36,0.12); color:var(--yellow); border:1px solid rgba(251,191,36,0.25); }
+  .tag-date.overdue { background:rgba(248,113,113,0.12); color:var(--red); border-color:rgba(248,113,113,0.25); }
+  .tag-status-done { background:rgba(74,222,128,0.12); color:var(--green); border:1px solid rgba(74,222,128,0.25); }
+  .tag-status-pending { background:rgba(251,191,36,0.12); color:var(--yellow); border:1px solid rgba(251,191,36,0.25); }
+
+  .task-actions { display:flex; gap:8px; align-items:center; flex-shrink:0; }
+  .btn-action { padding:6px 14px; border-radius:20px; border:1px solid; font-family:'Heebo',sans-serif; font-size:0.8rem; cursor:pointer; transition:all 0.2s; font-weight:600; }
+  .btn-done { background:rgba(74,222,128,0.1); border-color:rgba(74,222,128,0.4); color:var(--green); }
+  .btn-done:hover { background:rgba(74,222,128,0.2); }
+  .btn-undone { background:rgba(251,191,36,0.1); border-color:rgba(251,191,36,0.4); color:var(--yellow); }
+  .btn-undone:hover { background:rgba(251,191,36,0.2); }
+  .btn-delete { background:transparent; border-color:transparent; color:var(--muted); padding:6px 8px; font-size:1rem; }
+  .btn-delete:hover { color:var(--red); border-color:rgba(248,113,113,0.3); background:rgba(248,113,113,0.08); }
+
+  .activity { margin-top:10px; border-top:1px solid var(--border); padding-top:10px; display:flex; flex-direction:column; gap:5px; }
+  .activity-item { font-size:0.78rem; color:var(--muted); display:flex; gap:8px; align-items:baseline; }
+  .activity-item .act-user { font-weight:600; }
+  .activity-item .act-time { font-size:0.7rem; color:#555577; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div id="nameScreen">
+    <div class="name-card">
+      <div class="icon">👋</div>
+      <h2>שלום! מי אתה?</h2>
+      <p>הכנס את שמך כדי להתחיל</p>
+      <input type="text" id="nameInput" placeholder="השם שלך..." maxlength="30">
+      <button class="btn btn-primary" style="width:100%" id="startBtn">כניסה 🚀</button>
+    </div>
+  </div>
+
+  <div id="mainApp">
+    <header>
+      <h1>📋 יומן משימות</h1>
+      <p>יומן משותף לכל הצוות <span class="live-dot"></span> בזמן אמת</p>
+    </header>
+
+    <div class="user-bar">
+      <label>👤</label>
+      <span id="displayName"></span>
+      <div class="avatar" id="userAvatar"></div>
+      <button class="change-user-btn" id="changeBtn">החלף שם</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card"><div class="stat-number" id="statTotal" style="color:var(--accent)">0</div><div class="stat-label">סה"כ משימות</div></div>
+      <div class="stat-card"><div class="stat-number" id="statDone" style="color:var(--green)">0</div><div class="stat-label">בוצעו ✅</div></div>
+      <div class="stat-card"><div class="stat-number" id="statPending" style="color:var(--yellow)">0</div><div class="stat-label">ממתינות ⏳</div></div>
+    </div>
+
+    <div class="add-task-card">
+      <h2>+ הוסף משימה חדשה</h2>
+      <div class="form-row">
+        <input type="text" id="taskTitle" placeholder="תיאור המשימה..." maxlength="120">
+        <input type="date" id="taskDate">
+        <button class="btn btn-primary" id="addBtn">הוסף</button>
+      </div>
+    </div>
+
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all">הכל</button>
+      <button class="filter-btn" data-filter="pending">ממתינות</button>
+      <button class="filter-btn" data-filter="done">בוצעו</button>
+    </div>
+
+    <div id="tasksList" class="tasks-list"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAWsxdPU1kL6gX0nFupMWdZfTmNQ7a8fCw",
+  authDomain: "olam-f9e20.firebaseapp.com",
+  databaseURL: "https://olam-f9e20-default-rtdb.firebaseio.com",
+  projectId: "olam-f9e20",
+  storageBucket: "olam-f9e20.firebasestorage.app",
+  messagingSenderId: "772293528012",
+  appId: "1:772293528012:web:0f2235f403bb8af9f07569"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const tasksRef = ref(db, 'tasks');
+
+let tasks = {};
+let filter = 'all';
+let currentUser = localStorage.getItem('task-journal-name') || '';
+
+const colors = ['#7c6af7','#f76ab0','#4ade80','#fbbf24','#38bdf8','#f97316','#a78bfa','#34d399'];
+
+function getColor(name) {
+  let hash = 0;
+  for (let c of (name||'')) hash = c.charCodeAt(0) + ((hash<<5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+function getInitials(name) {
+  return (name||'?').trim().split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2)||'?';
+}
+function formatDate(d) {
+  if (!d) return null;
+  const [y,m,day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+function isOverdue(d) {
+  if (!d) return false;
+  return new Date(d) < new Date(new Date().toDateString());
+}
+function formatTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return `${d.getDate()}/${d.getMonth()+1} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function updateAvatar(name) {
+  const av = document.getElementById('userAvatar');
+  if (!av) return;
+  const c = getColor(name);
+  av.style.background = c+'22'; av.style.color = c;
+  av.textContent = getInitials(name);
+}
+
+function showApp(name) {
+  currentUser = name;
+  document.getElementById('nameScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('displayName').textContent = name;
+  updateAvatar(name);
+  document.getElementById('taskDate').value = new Date().toISOString().split('T')[0];
+}
+
+function addTask() {
+  const title = document.getElementById('taskTitle').value.trim();
+  const date = document.getElementById('taskDate').value;
+  if (!title) { document.getElementById('taskTitle').focus(); return; }
+  push(tasksRef, {
+    title, date: date||null, user: currentUser,
+    done: false, doneBy: null, createdAt: Date.now(),
+    activity: [{ user: currentUser, action: 'הוסיף משימה', ts: Date.now() }]
+  });
+  document.getElementById('taskTitle').value = '';
+}
+
+function toggleDone(id) {
+  const task = tasks[id];
+  if (!task) return;
+  const newDone = !task.done;
+  const activity = [...(task.activity||[]), { user: currentUser, action: newDone?'סימן כבוצע ✅':'סימן כלא בוצע ↩️', ts: Date.now() }];
+  update(ref(db,'tasks/'+id), { done: newDone, doneBy: newDone?currentUser:null, activity });
+}
+
+function deleteTask(id) {
+  if (!confirm('למחוק את המשימה?')) return;
+  remove(ref(db,'tasks/'+id));
+}
+
+function updateStats() {
+  const arr = Object.values(tasks);
+  const done = arr.filter(t=>t.done).length;
+  document.getElementById('statTotal').textContent = arr.length;
+  document.getElementById('statDone').textContent = done;
+  document.getElementById('statPending').textContent = arr.length - done;
+}
+
+function render() {
+  updateStats();
+  let arr = Object.entries(tasks).map(([id,t])=>({id,...t}));
+  if (filter==='done') arr = arr.filter(t=>t.done);
+  if (filter==='pending') arr = arr.filter(t=>!t.done);
+  arr.sort((a,b) => {
+    if (a.date&&b.date) return a.date.localeCompare(b.date);
+    if (a.date) return -1; if (b.date) return 1;
+    return (b.createdAt||0)-(a.createdAt||0);
+  });
+
+  const list = document.getElementById('tasksList');
+  if (arr.length===0) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">🗂️</div><p>אין משימות להציג</p></div>`;
+    return;
+  }
+  list.innerHTML = arr.map(task => {
+    const color = getColor(task.user);
+    const overdue = isOverdue(task.date) && !task.done;
+    const acts = (task.activity||[]).slice(-3).reverse().map(a =>
+      `<div class="activity-item"><span class="act-user" style="color:${getColor(a.user)}">${a.user}</span><span>${a.action}</span><span class="act-time">${formatTime(a.ts)}</span></div>`
+    ).join('');
+    return `<div class="task-card ${task.done?'done':''}">
+      <div class="task-top">
+        <div style="background:${color}22;color:${color};width:34px;height:34px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:700">${getInitials(task.user)}</div>
+        <div class="task-info">
+          <div class="task-title">${task.title}</div>
+          <div class="task-meta">
+            <span class="tag tag-user">${task.user}</span>
+            ${task.date?`<span class="tag tag-date ${overdue?'overdue':''}">${overdue?'⚠️ ':'📅 '}${formatDate(task.date)}</span>`:''}
+            <span class="tag ${task.done?'tag-status-done':'tag-status-pending'}">${task.done?'✅ בוצע':'⏳ ממתין'}</span>
+            ${task.done&&task.doneBy?`<span style="font-size:0.74rem;color:var(--muted)">ע"י ${task.doneBy}</span>`:''}
+          </div>
+        </div>
+        <div class="task-actions">
+          <button class="btn-action ${task.done?'btn-undone':'btn-done'}" data-id="${task.id}" data-action="toggle">${task.done?'↩️ לא בוצע':'✅ בוצע'}</button>
+          <button class="btn-action btn-delete" data-id="${task.id}" data-action="delete">🗑</button>
+        </div>
+      </div>
+      ${acts?`<div class="activity">${acts}</div>`:''}
+    </div>`;
+  }).join('');
+
+  // Attach events via delegation
+  list.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      if (btn.dataset.action === 'toggle') toggleDone(id);
+      if (btn.dataset.action === 'delete') deleteTask(id);
+    });
+  });
+}
+
+// Firebase listener
+onValue(tasksRef, (snapshot) => {
+  tasks = snapshot.val() || {};
+  if (document.getElementById('mainApp').style.display === 'block') render();
+});
+
+// Events
+document.getElementById('startBtn').addEventListener('click', () => {
+  const name = document.getElementById('nameInput').value.trim();
+  if (!name) { document.getElementById('nameInput').focus(); return; }
+  localStorage.setItem('task-journal-name', name);
+  showApp(name);
+});
+
+document.getElementById('nameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('startBtn').click();
+});
+
+document.getElementById('addBtn').addEventListener('click', addTask);
+
+document.getElementById('taskTitle').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addTask();
+});
+
+document.getElementById('changeBtn').addEventListener('click', () => {
+  localStorage.removeItem('task-journal-name');
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('nameScreen').style.display = 'flex';
+  document.getElementById('nameInput').value = '';
+});
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    filter = btn.dataset.filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  });
+});
+
+// Auto-login
+if (currentUser) showApp(currentUser);
+</script>
+</body>
+</html>
