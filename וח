@@ -1,0 +1,165 @@
+import React, { useState, useEffect } from 'react';
+import { Text, View, ScrollView, Image, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
+import { BarCodeScanner } from 'expo-barcode-scanner';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Button, Card } from 'react-native-elements';
+import RNIap, { purchaseUpdatedListener, purchaseErrorListener } from 'react-native-iap';
+
+// החלף את המזהים במזהי המוצרים שלך
+const itemSkus = Platform.select({
+  ios: ['com.yourapp.premium_monthly'],
+  android: ['com.yourapp.premium_monthly'],
+});
+
+export default function App() {
+  const [hasPermission, setHasPermission] = useState(null);
+  const [scanned, setScanned] = useState(false);
+  const [product, setProduct] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [cart, setCart] = useState([]);
+  const [premium, setPremium] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await BarCodeScanner.requestPermissionsAsync();
+      setHasPermission(status === 'granted');
+      loadHistory();
+    })();
+
+    // חיבור ל-In-App Purchases
+    RNIap.initConnection()
+      .then(() => console.log('IAP connected'))
+      .catch(() => console.log('IAP failed'));
+
+    const purchaseUpdate = purchaseUpdatedListener((purchase) => {
+      if (purchase.transactionReceipt) setPremium(true);
+    });
+    const purchaseError = purchaseErrorListener((error) => console.warn('Purchase error', error));
+
+    return () => {
+      purchaseUpdate.remove();
+      purchaseError.remove();
+      RNIap.endConnection();
+    };
+  }, []);
+
+  const loadHistory = async () => {
+    const stored = await AsyncStorage.getItem('history');
+    if (stored) setHistory(JSON.parse(stored));
+  };
+
+  const saveToHistory = async (item) => {
+    const newHistory = [item, ...history];
+    setHistory(newHistory);
+    await AsyncStorage.setItem('history', JSON.stringify(newHistory));
+  };
+
+  const fetchPriceIsrael = async (barcode) => {
+    try {
+      // דוגמה – מחירים ישראליים מדומים
+      // ניתן להחליף לקריאה ל-API אמיתי (Shufersal, BarcodeLookup, Affiliate)
+      return '₪' + (Math.floor(Math.random() * 50) + 5);
+    } catch {
+      return 'לא זמין';
+    }
+  };
+
+  const handleBarCodeScanned = async ({ type, data }) => {
+    setScanned(true);
+
+    try {
+      const response = await axios.get(`https://world.openfoodfacts.org/api/v0/product/${data}.json`);
+      if (response.data.status === 1) {
+        const price = await fetchPriceIsrael(data);
+        const productData = {
+          code: data,
+          name: response.data.product.product_name || 'לא ידוע',
+          brand: response.data.product.brands || 'לא ידוע',
+          image: response.data.product.image_small_url || null,
+          ingredients: response.data.product.ingredients_text || 'אין מידע',
+          price
+        };
+        setProduct(productData);
+        saveToHistory(productData);
+      } else {
+        Alert.alert('לא נמצא מוצר עבור הברקוד הזה');
+        setProduct(null);
+      }
+    } catch (error) {
+      console.log(error);
+      Alert.alert('שגיאה בחיבור לשרת');
+    }
+  };
+
+  const addToCart = (item) => {
+    if (!cart.find(i => i.code === item.code)) setCart([...cart, item]);
+  };
+
+  if (hasPermission === null) return <Text style={styles.centerText}>מבקש הרשאות למצלמה...</Text>;
+  if (hasPermission === false) return <Text style={styles.centerText}>אין הרשאות למצלמה</Text>;
+
+  return (
+    <View style={styles.container}>
+      <BarCodeScanner
+        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.premiumButton} onPress={async () => {
+          try { await RNIap.requestPurchase(itemSkus[0]); } catch(e){ console.log(e); }
+        }}>
+          <Text style={styles.premiumText}>{premium ? 'פרימיום פעיל' : 'שדרג לפרימיום'}</Text>
+        </TouchableOpacity>
+        {scanned && <Button title="סריקה נוספת" onPress={() => { setScanned(false); setProduct(null); }} />}
+      </View>
+      <ScrollView style={styles.infoContainer}>
+        {product && (
+          <Card containerStyle={premium ? styles.premiumCard : styles.productCard}>
+            <Card.Title>{product.name}</Card.Title>
+            <Text>יצרן: {product.brand}</Text>
+            <Text>מחיר: {product.price}</Text>
+            <Text>מרכיבים: {product.ingredients}</Text>
+            {product.image && <Image source={{ uri: product.image }} style={styles.image} />}
+            <Button title="הוסף לרשימת קניות" onPress={() => addToCart(product)} />
+          </Card>
+        )}
+        {cart.length > 0 && (
+          <>
+            <Text style={styles.historyTitle}>רשימת קניות:</Text>
+            {cart.map((item, index) => (
+              <Card key={index} containerStyle={styles.productCard}>
+                <Text>{item.name} - {item.brand}</Text>
+                {item.image && <Image source={{ uri: item.image }} style={styles.image} />}
+              </Card>
+            ))}
+          </>
+        )}
+        {history.length > 0 && (
+          <>
+            <Text style={styles.historyTitle}>היסטוריית סריקות:</Text>
+            {history.map((item, index) => (
+              <Card key={index} containerStyle={styles.productCard}>
+                <Text>{item.name} - {item.brand}</Text>
+                {item.image && <Image source={{ uri: item.image }} style={styles.image} />}
+              </Card>
+            ))}
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', padding: 10, backgroundColor: '#4a90e2' },
+  premiumButton: { backgroundColor: '#f5a623', padding: 8, borderRadius: 8 },
+  premiumText: { color: 'white', fontWeight: 'bold' },
+  infoContainer: { flex: 1, backgroundColor: 'rgba(255,255,255,0.95)', padding: 10 },
+  productCard: { borderRadius: 10 },
+  premiumCard: { borderRadius: 10, borderColor: '#f5a623', borderWidth: 2 },
+  image: { width: 100, height: 100, marginTop: 5 },
+  historyTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 10, marginBottom: 5 },
+  centerText: { flex: 1, textAlign: 'center', textAlignVertical: 'center', fontSize: 18 },
+});
